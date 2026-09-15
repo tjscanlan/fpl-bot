@@ -46,10 +46,6 @@ Deployed on Kubernetes (AWS), with Prometheus and Grafana running alongside the 
 - **Postmortems:** every page gets a written postmortem in [`postmortems/`](./postmortems/), regardless of severity, while the project builds a track record.
 - **Chaos testing:** periodic deliberate failure injection (killing pods mid-match, simulating upstream API outages) to validate that monitoring and alerting actually catch what they're supposed to.
 
-## Project Status
-
-This project is being built incrementally, feature by feature, with each shipped to real users before the next one starts. See [`docs/execution-plan.md`](./docs/execution-plan.md) for the full build sequence.
-
 ## Local Development
 
 ```bash
