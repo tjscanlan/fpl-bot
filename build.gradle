@@ -1,0 +1,37 @@
+plugins {
+    id 'java'
+    id 'com.diffplug.spotless' version '8.10.2'
+}
+
+group = 'com.fplbot'
+version = '0.1.0-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'net.dv8tion:JDA:5.6.1'
+    implementation 'org.slf4j:slf4j-api:2.0.17'
+    implementation 'ch.qos.logback:logback-classic:1.5.18'
+    implementation 'io.github.cdimascio:dotenv-java:3.2.0'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+spotless {
+    java {
+        googleJavaFormat()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
