@@ -26,6 +26,8 @@ dependencies {
     implementation 'org.slf4j:slf4j-api:2.0.17'
     implementation 'ch.qos.logback:logback-classic:1.5.18'
     implementation 'io.github.cdimascio:dotenv-java:3.2.0'
+    implementation 'io.micrometer:micrometer-core:1.15.0'
+    implementation 'io.micrometer:micrometer-registry-prometheus:1.15.0'
 }
 
 test {
