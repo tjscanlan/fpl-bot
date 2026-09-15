@@ -34,7 +34,10 @@ public class Main {
     log.info("Metrics available at http://localhost:{}/metrics", metricsPort);
 
     JDA jda =
-        JDABuilder.createLight(token).addEventListeners(new PingCommand()).build().awaitReady();
+        JDABuilder.createLight(token)
+            .addEventListeners(new PingCommand(registry))
+            .build()
+            .awaitReady();
 
     jda.updateCommands().addCommands(Commands.slash("ping", "Replies with pong.")).queue();
 
