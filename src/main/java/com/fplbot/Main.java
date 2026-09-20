@@ -12,6 +12,7 @@ import com.fplbot.prices.PriceChangeService;
 import com.fplbot.prices.PriceRepository;
 import com.fplbot.reminders.ReminderRepository;
 import com.fplbot.reminders.ReminderService;
+import com.fplbot.scheduler.LiveMatchScheduler;
 import com.fplbot.scheduler.PriceCheckScheduler;
 import com.fplbot.scheduler.ReminderScheduler;
 import io.github.cdimascio.dotenv.Dotenv;
@@ -119,5 +120,12 @@ public class Main {
         new PriceChangeService(fplApiClient, new PriceRepository(dataSource), registry);
     PriceAlertSender priceAlertSender = new PriceAlertSender(jda, priceAlertChannelId);
     new PriceCheckScheduler(priceChangeService, priceAlertSender, priceCheckTime).start();
+
+    String liveMatchPollIntervalEnv =
+        dotenv.get(
+            "LIVE_MATCH_POLL_INTERVAL_SECONDS", System.getenv("LIVE_MATCH_POLL_INTERVAL_SECONDS"));
+    long liveMatchPollIntervalSeconds =
+        liveMatchPollIntervalEnv != null ? Long.parseLong(liveMatchPollIntervalEnv) : 30;
+    new LiveMatchScheduler(fplApiClient).start(Duration.ofSeconds(liveMatchPollIntervalSeconds));
   }
 }

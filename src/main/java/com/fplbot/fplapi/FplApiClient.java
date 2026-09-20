@@ -1,5 +1,6 @@
 package com.fplbot.fplapi;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -23,6 +24,8 @@ public class FplApiClient {
   private static final Logger log = LoggerFactory.getLogger(FplApiClient.class);
   private static final URI BOOTSTRAP_STATIC_URI =
       URI.create("https://fantasy.premierleague.com/api/bootstrap-static/");
+  private static final URI FIXTURES_URI =
+      URI.create("https://fantasy.premierleague.com/api/fixtures/");
   private static final int MAX_ATTEMPTS = 3;
   private static final Duration INITIAL_BACKOFF = Duration.ofSeconds(1);
   private static final int CIRCUIT_BREAKER_FAILURE_THRESHOLD = 3;
@@ -67,6 +70,11 @@ public class FplApiClient {
             "https://fantasy.premierleague.com/api/leagues-classic/" + leagueId + "/standings/");
     String body = getWithRetry(uri);
     return objectMapper.readValue(body, LeagueStandings.class);
+  }
+
+  public List<Fixture> getFixtures() throws IOException, InterruptedException {
+    String body = getWithRetry(FIXTURES_URI);
+    return objectMapper.readValue(body, new TypeReference<List<Fixture>>() {});
   }
 
   private String getWithRetry(URI uri) throws IOException, InterruptedException {
