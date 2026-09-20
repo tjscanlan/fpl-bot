@@ -4,6 +4,8 @@ import com.fplbot.commands.PingCommand;
 import com.fplbot.db.Database;
 import com.fplbot.fplapi.FplApiClient;
 import com.fplbot.metrics.MetricsServer;
+import com.fplbot.prices.PriceChangeService;
+import com.fplbot.prices.PriceRepository;
 import com.fplbot.reminders.ReminderRepository;
 import com.fplbot.reminders.ReminderService;
 import com.fplbot.scheduler.PriceCheckScheduler;
@@ -90,6 +92,8 @@ public class Main {
     String priceCheckTimeEnv = dotenv.get("PRICE_CHECK_TIME", System.getenv("PRICE_CHECK_TIME"));
     LocalTime priceCheckTime =
         priceCheckTimeEnv != null ? LocalTime.parse(priceCheckTimeEnv) : LocalTime.of(1, 30);
-    new PriceCheckScheduler(fplApiClient, priceCheckTime).start();
+    PriceChangeService priceChangeService =
+        new PriceChangeService(fplApiClient, new PriceRepository(dataSource));
+    new PriceCheckScheduler(priceChangeService, priceCheckTime).start();
   }
 }

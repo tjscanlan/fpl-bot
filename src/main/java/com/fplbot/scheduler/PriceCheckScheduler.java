@@ -1,12 +1,10 @@
 package com.fplbot.scheduler;
 
-import com.fplbot.fplapi.FplApiClient;
-import com.fplbot.fplapi.Player;
+import com.fplbot.prices.PriceChangeService;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -18,12 +16,12 @@ public class PriceCheckScheduler {
   private static final Logger log = LoggerFactory.getLogger(PriceCheckScheduler.class);
   private static final ZoneId UK_ZONE = ZoneId.of("Europe/London");
 
-  private final FplApiClient fplApiClient;
+  private final PriceChangeService priceChangeService;
   private final LocalTime runAt;
   private final ScheduledExecutorService executor;
 
-  public PriceCheckScheduler(FplApiClient fplApiClient, LocalTime runAt) {
-    this.fplApiClient = fplApiClient;
+  public PriceCheckScheduler(PriceChangeService priceChangeService, LocalTime runAt) {
+    this.priceChangeService = priceChangeService;
     this.runAt = runAt;
     this.executor =
         Executors.newSingleThreadScheduledExecutor(
@@ -62,8 +60,7 @@ public class PriceCheckScheduler {
     // scheduleAtFixedRate silently stops future runs if a task throws, so every
     // exception must be swallowed here rather than left to propagate.
     try {
-      List<Player> players = fplApiClient.getPlayers();
-      log.info("Fetched current prices for {} players", players.size());
+      priceChangeService.checkForPriceChanges();
     } catch (Exception e) {
       log.error("Price check failed", e);
     }
