@@ -25,9 +25,12 @@ public class FplApiClient {
       URI.create("https://fantasy.premierleague.com/api/bootstrap-static/");
   private static final int MAX_ATTEMPTS = 3;
   private static final Duration INITIAL_BACKOFF = Duration.ofSeconds(1);
+  private static final int CIRCUIT_BREAKER_FAILURE_THRESHOLD = 3;
+  private static final Duration CIRCUIT_BREAKER_OPEN_DURATION = Duration.ofMinutes(5);
 
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper;
+  private final CircuitBreaker circuitBreaker;
 
   public FplApiClient() {
     this(HttpClient.newHttpClient());
@@ -39,6 +42,8 @@ public class FplApiClient {
         new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+    this.circuitBreaker =
+        new CircuitBreaker(CIRCUIT_BREAKER_FAILURE_THRESHOLD, CIRCUIT_BREAKER_OPEN_DURATION);
   }
 
   public List<Gameweek> getGameweeks() throws IOException, InterruptedException {
@@ -50,7 +55,16 @@ public class FplApiClient {
     return getGameweeks().stream().filter(Gameweek::isNext).findFirst();
   }
 
+  public List<Player> getPlayers() throws IOException, InterruptedException {
+    String body = getWithRetry(BOOTSTRAP_STATIC_URI);
+    return objectMapper.readValue(body, BootstrapStatic.class).elements();
+  }
+
   private String getWithRetry(URI uri) throws IOException, InterruptedException {
+    if (!circuitBreaker.allowRequest()) {
+      throw new IOException("FPL API circuit breaker is open; failing fast");
+    }
+
     HttpRequest request = HttpRequest.newBuilder(uri).GET().timeout(Duration.ofSeconds(10)).build();
 
     IOException lastFailure = null;
@@ -59,6 +73,7 @@ public class FplApiClient {
         HttpResponse<String> response =
             httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() / 100 == 2) {
+          circuitBreaker.recordSuccess();
           return response.body();
         }
         lastFailure = new IOException("FPL API returned HTTP " + response.statusCode());
@@ -77,6 +92,7 @@ public class FplApiClient {
         Thread.sleep(backoff.toMillis());
       }
     }
+    circuitBreaker.recordFailure();
     throw lastFailure;
   }
 }
