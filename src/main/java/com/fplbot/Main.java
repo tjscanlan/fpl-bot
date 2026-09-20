@@ -1,11 +1,13 @@
 package com.fplbot;
 
 import com.fplbot.commands.PingCommand;
+import com.fplbot.db.Database;
 import com.fplbot.metrics.MetricsServer;
 import io.github.cdimascio.dotenv.Dotenv;
 import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import java.io.IOException;
+import javax.sql.DataSource;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
@@ -32,6 +34,10 @@ public class Main {
     PrometheusMeterRegistry registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
     new MetricsServer(registry, metricsPort).start();
     log.info("Metrics available at http://localhost:{}/metrics", metricsPort);
+
+    DataSource dataSource = Database.dataSource(dotenv);
+    Database.migrate(dataSource);
+    log.info("Database migrations applied");
 
     JDA jda =
         JDABuilder.createLight(token)
