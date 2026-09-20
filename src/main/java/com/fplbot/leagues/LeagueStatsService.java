@@ -8,7 +8,9 @@ import java.time.Duration;
 
 /**
  * Caches standings per league for a couple of minutes: queries around deadline time come in bursts,
- * and standings don't change quickly enough to justify hitting the FPL API on every one.
+ * and standings don't change quickly enough to justify hitting the FPL API on every one. Uses
+ * Caffeine's atomic get-or-compute so a burst of concurrent first-time requests for the same league
+ * coalesces into a single upstream call rather than stampeding the API.
  */
 public class LeagueStatsService {
 
@@ -23,12 +25,21 @@ public class LeagueStatsService {
   }
 
   public LeagueStandings getStandings(long leagueId) throws Exception {
-    LeagueStandings cached = cache.getIfPresent(leagueId);
-    if (cached != null) {
-      return cached;
+    try {
+      return cache.get(leagueId, this::fetchStandings);
+    } catch (RuntimeException e) {
+      if (e.getCause() instanceof Exception cause) {
+        throw cause;
+      }
+      throw e;
     }
-    LeagueStandings standings = fplApiClient.getLeagueStandings(leagueId);
-    cache.put(leagueId, standings);
-    return standings;
+  }
+
+  private LeagueStandings fetchStandings(long leagueId) {
+    try {
+      return fplApiClient.getLeagueStandings(leagueId);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }
