@@ -76,7 +76,8 @@ public class Main {
               new ReminderRepository(dataSource),
               jda,
               reminderChannelId,
-              Duration.ofMinutes(leadMinutes));
+              Duration.ofMinutes(leadMinutes),
+              registry);
 
       new ReminderScheduler(reminderService).start(Duration.ofMinutes(pollIntervalMinutes));
       log.info("Reminder scheduler started, polling every {} minutes", pollIntervalMinutes);

@@ -2,6 +2,8 @@ package com.fplbot.reminders;
 
 import com.fplbot.fplapi.FplApiClient;
 import com.fplbot.fplapi.Gameweek;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -19,18 +21,31 @@ public class ReminderService {
   private final JDA jda;
   private final long reminderChannelId;
   private final Duration leadTime;
+  private final Counter deliverySuccessCounter;
+  private final Counter deliveryFailureCounter;
 
   public ReminderService(
       FplApiClient fplApiClient,
       ReminderRepository reminderRepository,
       JDA jda,
       long reminderChannelId,
-      Duration leadTime) {
+      Duration leadTime,
+      MeterRegistry registry) {
     this.fplApiClient = fplApiClient;
     this.reminderRepository = reminderRepository;
     this.jda = jda;
     this.reminderChannelId = reminderChannelId;
     this.leadTime = leadTime;
+    this.deliverySuccessCounter =
+        Counter.builder("bot.reminder.delivery")
+            .description("Deadline reminder delivery attempts")
+            .tag("result", "success")
+            .register(registry);
+    this.deliveryFailureCounter =
+        Counter.builder("bot.reminder.delivery")
+            .description("Deadline reminder delivery attempts")
+            .tag("result", "failure")
+            .register(registry);
   }
 
   /**
@@ -53,8 +68,14 @@ public class ReminderService {
       return;
     }
 
-    sendReminder(gameweek);
-    reminderRepository.recordSent(gameweek.id());
+    try {
+      sendReminder(gameweek);
+      reminderRepository.recordSent(gameweek.id());
+      deliverySuccessCounter.increment();
+    } catch (Exception e) {
+      deliveryFailureCounter.increment();
+      throw e;
+    }
   }
 
   private boolean isWithinReminderWindow(Gameweek gameweek) {
