@@ -139,7 +139,9 @@ public class Main {
     long liveMatchPollIntervalSeconds =
         liveMatchPollIntervalEnv != null ? Long.parseLong(liveMatchPollIntervalEnv) : 30;
     new LiveMatchScheduler(
-            fplApiClient, new LiveMatchTracker(), new LiveMatchAlertSender(jda, liveMatchChannelId))
+            fplApiClient,
+            new LiveMatchTracker(),
+            new LiveMatchAlertSender(jda, liveMatchChannelId, registry))
         .start(Duration.ofSeconds(liveMatchPollIntervalSeconds));
   }
 }
