@@ -1,0 +1,27 @@
+# Alert rules for the deadline reminder SLO (docs/fpl-bot-slo.md): 100% delivered,
+# zero error budget. Defined alongside the feature now; not yet deployed to a live
+# Prometheus/Alertmanager instance until the Phase 6 infra work wires up scraping.
+groups:
+  - name: deadline-reminders
+    rules:
+      - alert: DeadlineReminderDeliveryFailed
+        expr: increase(bot_reminder_delivery_total{result="failure"}[5m]) > 0
+        for: 0m
+        labels:
+          severity: page
+        annotations:
+          summary: "Deadline reminder delivery failed"
+          description: >-
+            At least one deadline reminder delivery attempt has failed in the last 5
+            minutes. This SLO has zero error budget, so this pages immediately.
+
+      - alert: FplBotDown
+        expr: up{job="fpl-bot"} == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "fpl-bot is down"
+          description: >-
+            fpl-bot has not been scraped successfully for 2 minutes. Deadline
+            reminders cannot be sent while the bot is down.
