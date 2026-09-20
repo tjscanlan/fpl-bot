@@ -4,6 +4,8 @@ import com.fplbot.commands.PingCommand;
 import com.fplbot.db.Database;
 import com.fplbot.fplapi.FplApiClient;
 import com.fplbot.metrics.MetricsServer;
+import com.fplbot.reminders.ReminderRepository;
+import com.fplbot.reminders.ReminderService;
 import com.fplbot.scheduler.ReminderScheduler;
 import io.github.cdimascio.dotenv.Dotenv;
 import io.micrometer.prometheusmetrics.PrometheusConfig;
@@ -52,12 +54,32 @@ public class Main {
 
     log.info("Connected to Discord as {}", jda.getSelfUser().getName());
 
-    String pollIntervalEnv =
-        dotenv.get(
-            "REMINDER_POLL_INTERVAL_MINUTES", System.getenv("REMINDER_POLL_INTERVAL_MINUTES"));
-    long pollIntervalMinutes = pollIntervalEnv != null ? Long.parseLong(pollIntervalEnv) : 15;
+    String reminderChannelIdEnv =
+        dotenv.get("REMINDER_CHANNEL_ID", System.getenv("REMINDER_CHANNEL_ID"));
+    if (reminderChannelIdEnv == null || reminderChannelIdEnv.isBlank()) {
+      log.warn("REMINDER_CHANNEL_ID is not set; deadline reminders are disabled.");
+    } else {
+      long reminderChannelId = Long.parseLong(reminderChannelIdEnv);
 
-    new ReminderScheduler(new FplApiClient()).start(Duration.ofMinutes(pollIntervalMinutes));
-    log.info("Reminder scheduler started, polling every {} minutes", pollIntervalMinutes);
+      String leadMinutesEnv =
+          dotenv.get("REMINDER_LEAD_MINUTES", System.getenv("REMINDER_LEAD_MINUTES"));
+      long leadMinutes = leadMinutesEnv != null ? Long.parseLong(leadMinutesEnv) : 60;
+
+      String pollIntervalEnv =
+          dotenv.get(
+              "REMINDER_POLL_INTERVAL_MINUTES", System.getenv("REMINDER_POLL_INTERVAL_MINUTES"));
+      long pollIntervalMinutes = pollIntervalEnv != null ? Long.parseLong(pollIntervalEnv) : 15;
+
+      ReminderService reminderService =
+          new ReminderService(
+              new FplApiClient(),
+              new ReminderRepository(dataSource),
+              jda,
+              reminderChannelId,
+              Duration.ofMinutes(leadMinutes));
+
+      new ReminderScheduler(reminderService).start(Duration.ofMinutes(pollIntervalMinutes));
+      log.info("Reminder scheduler started, polling every {} minutes", pollIntervalMinutes);
+    }
   }
 }
