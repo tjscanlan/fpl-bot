@@ -1,8 +1,11 @@
 package com.fplbot;
 
+import com.fplbot.commands.LeagueStatsCommand;
 import com.fplbot.commands.PingCommand;
 import com.fplbot.db.Database;
 import com.fplbot.fplapi.FplApiClient;
+import com.fplbot.leagues.LeagueRepository;
+import com.fplbot.leagues.LeagueStatsService;
 import com.fplbot.metrics.MetricsServer;
 import com.fplbot.prices.PriceAlertSender;
 import com.fplbot.prices.PriceChangeService;
@@ -49,17 +52,26 @@ public class Main {
     Database.migrate(dataSource);
     log.info("Database migrations applied");
 
+    FplApiClient fplApiClient = new FplApiClient();
+    LeagueRepository leagueRepository = new LeagueRepository(dataSource);
+    LeagueStatsService leagueStatsService = new LeagueStatsService(fplApiClient);
+
     JDA jda =
         JDABuilder.createLight(token)
-            .addEventListeners(new PingCommand(registry))
+            .addEventListeners(
+                new PingCommand(registry),
+                new LeagueStatsCommand(leagueRepository, leagueStatsService, registry))
             .build()
             .awaitReady();
 
-    jda.updateCommands().addCommands(Commands.slash("ping", "Replies with pong.")).queue();
+    jda.updateCommands()
+        .addCommands(
+            Commands.slash("ping", "Replies with pong."),
+            Commands.slash(
+                "league-stats", "Show the standings for this server's tracked FPL league."))
+        .queue();
 
     log.info("Connected to Discord as {}", jda.getSelfUser().getName());
-
-    FplApiClient fplApiClient = new FplApiClient();
 
     String reminderChannelIdEnv =
         dotenv.get("REMINDER_CHANNEL_ID", System.getenv("REMINDER_CHANNEL_ID"));
