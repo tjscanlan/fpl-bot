@@ -1,10 +1,13 @@
 package com.fplbot.scheduler;
 
+import com.fplbot.prices.PriceAlertSender;
+import com.fplbot.prices.PriceChange;
 import com.fplbot.prices.PriceChangeService;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -17,11 +20,14 @@ public class PriceCheckScheduler {
   private static final ZoneId UK_ZONE = ZoneId.of("Europe/London");
 
   private final PriceChangeService priceChangeService;
+  private final PriceAlertSender priceAlertSender;
   private final LocalTime runAt;
   private final ScheduledExecutorService executor;
 
-  public PriceCheckScheduler(PriceChangeService priceChangeService, LocalTime runAt) {
+  public PriceCheckScheduler(
+      PriceChangeService priceChangeService, PriceAlertSender priceAlertSender, LocalTime runAt) {
     this.priceChangeService = priceChangeService;
+    this.priceAlertSender = priceAlertSender;
     this.runAt = runAt;
     this.executor =
         Executors.newSingleThreadScheduledExecutor(
@@ -60,7 +66,8 @@ public class PriceCheckScheduler {
     // scheduleAtFixedRate silently stops future runs if a task throws, so every
     // exception must be swallowed here rather than left to propagate.
     try {
-      priceChangeService.checkForPriceChanges();
+      List<PriceChange> changes = priceChangeService.checkForPriceChanges();
+      priceAlertSender.send(changes);
     } catch (Exception e) {
       log.error("Price check failed", e);
     }

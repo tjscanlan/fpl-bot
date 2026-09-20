@@ -4,6 +4,7 @@ import com.fplbot.commands.PingCommand;
 import com.fplbot.db.Database;
 import com.fplbot.fplapi.FplApiClient;
 import com.fplbot.metrics.MetricsServer;
+import com.fplbot.prices.PriceAlertSender;
 import com.fplbot.prices.PriceChangeService;
 import com.fplbot.prices.PriceRepository;
 import com.fplbot.reminders.ReminderRepository;
@@ -89,11 +90,22 @@ public class Main {
       log.info("Reminder scheduler started, polling every {} minutes", pollIntervalMinutes);
     }
 
+    String priceAlertChannelIdEnv =
+        dotenv.get("PRICE_ALERT_CHANNEL_ID", System.getenv("PRICE_ALERT_CHANNEL_ID"));
+    Long priceAlertChannelId =
+        priceAlertChannelIdEnv != null && !priceAlertChannelIdEnv.isBlank()
+            ? Long.parseLong(priceAlertChannelIdEnv)
+            : null;
+    if (priceAlertChannelId == null) {
+      log.warn("PRICE_ALERT_CHANNEL_ID is not set; price-change alerts are disabled.");
+    }
+
     String priceCheckTimeEnv = dotenv.get("PRICE_CHECK_TIME", System.getenv("PRICE_CHECK_TIME"));
     LocalTime priceCheckTime =
         priceCheckTimeEnv != null ? LocalTime.parse(priceCheckTimeEnv) : LocalTime.of(1, 30);
     PriceChangeService priceChangeService =
         new PriceChangeService(fplApiClient, new PriceRepository(dataSource));
-    new PriceCheckScheduler(priceChangeService, priceCheckTime).start();
+    PriceAlertSender priceAlertSender = new PriceAlertSender(jda, priceAlertChannelId);
+    new PriceCheckScheduler(priceChangeService, priceAlertSender, priceCheckTime).start();
   }
 }
