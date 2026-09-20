@@ -3,6 +3,7 @@ package com.fplbot.livematch;
 import com.fplbot.fplapi.Fixture;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import java.time.Duration;
 import java.util.Map;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
@@ -24,6 +25,10 @@ public class LiveMatchAlertSender {
         Timer.builder("bot.live_match.update.freshness")
             .description(
                 "Time from detecting a live score change to the update being confirmed sent")
+            // A bucket boundary at exactly 60s lets the "95% within 60 seconds" SLO be
+            // alerted on directly (bucket{le="60"} / count), without needing
+            // histogram_quantile interpolation across arbitrary buckets.
+            .serviceLevelObjectives(Duration.ofSeconds(60))
             .register(registry);
   }
 
