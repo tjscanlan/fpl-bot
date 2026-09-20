@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'application'
     id 'com.diffplug.spotless' version '8.10.2'
 }
 
@@ -12,6 +13,10 @@ java {
     }
 }
 
+application {
+    mainClass = 'com.fplbot.Main'
+}
+
 repositories {
     mavenCentral()
 }
@@ -21,6 +26,14 @@ dependencies {
     implementation 'org.slf4j:slf4j-api:2.0.17'
     implementation 'ch.qos.logback:logback-classic:1.5.18'
     implementation 'io.github.cdimascio:dotenv-java:3.2.0'
+    implementation 'io.micrometer:micrometer-core:1.15.0'
+    implementation 'io.micrometer:micrometer-registry-prometheus:1.15.0'
+    implementation 'net.logstash.logback:logstash-logback-encoder:8.1'
+
+    testImplementation platform('org.junit:junit-bom:5.12.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'org.mockito:mockito-core:5.18.0'
 }
 
 test {
