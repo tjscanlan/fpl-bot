@@ -2,11 +2,14 @@ package com.fplbot;
 
 import com.fplbot.commands.PingCommand;
 import com.fplbot.db.Database;
+import com.fplbot.fplapi.FplApiClient;
 import com.fplbot.metrics.MetricsServer;
+import com.fplbot.scheduler.ReminderScheduler;
 import io.github.cdimascio.dotenv.Dotenv;
 import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import java.io.IOException;
+import java.time.Duration;
 import javax.sql.DataSource;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
@@ -48,5 +51,13 @@ public class Main {
     jda.updateCommands().addCommands(Commands.slash("ping", "Replies with pong.")).queue();
 
     log.info("Connected to Discord as {}", jda.getSelfUser().getName());
+
+    String pollIntervalEnv =
+        dotenv.get(
+            "REMINDER_POLL_INTERVAL_MINUTES", System.getenv("REMINDER_POLL_INTERVAL_MINUTES"));
+    long pollIntervalMinutes = pollIntervalEnv != null ? Long.parseLong(pollIntervalEnv) : 15;
+
+    new ReminderScheduler(new FplApiClient()).start(Duration.ofMinutes(pollIntervalMinutes));
+    log.info("Reminder scheduler started, polling every {} minutes", pollIntervalMinutes);
   }
 }
