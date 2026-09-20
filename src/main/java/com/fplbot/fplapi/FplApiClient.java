@@ -50,6 +50,11 @@ public class FplApiClient {
     return getGameweeks().stream().filter(Gameweek::isNext).findFirst();
   }
 
+  public List<Player> getPlayers() throws IOException, InterruptedException {
+    String body = getWithRetry(BOOTSTRAP_STATIC_URI);
+    return objectMapper.readValue(body, BootstrapStatic.class).elements();
+  }
+
   private String getWithRetry(URI uri) throws IOException, InterruptedException {
     HttpRequest request = HttpRequest.newBuilder(uri).GET().timeout(Duration.ofSeconds(10)).build();
 
