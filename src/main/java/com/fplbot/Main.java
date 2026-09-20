@@ -141,7 +141,8 @@ public class Main {
     new LiveMatchScheduler(
             fplApiClient,
             new LiveMatchTracker(),
-            new LiveMatchAlertSender(jda, liveMatchChannelId, registry))
+            new LiveMatchAlertSender(jda, liveMatchChannelId, registry),
+            registry)
         .start(Duration.ofSeconds(liveMatchPollIntervalSeconds));
   }
 }

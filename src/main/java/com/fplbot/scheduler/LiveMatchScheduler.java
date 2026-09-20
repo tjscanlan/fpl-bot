@@ -5,6 +5,8 @@ import com.fplbot.fplapi.FplApiClient;
 import com.fplbot.fplapi.Team;
 import com.fplbot.livematch.LiveMatchAlertSender;
 import com.fplbot.livematch.LiveMatchTracker;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -33,14 +35,27 @@ public class LiveMatchScheduler {
   private final LiveMatchAlertSender liveMatchAlertSender;
   private final ScheduledExecutorService pollingExecutor;
   private final ExecutorService matchProcessingExecutor;
+  private final Counter pollSuccessCounter;
+  private final Counter pollFailureCounter;
 
   public LiveMatchScheduler(
       FplApiClient fplApiClient,
       LiveMatchTracker liveMatchTracker,
-      LiveMatchAlertSender liveMatchAlertSender) {
+      LiveMatchAlertSender liveMatchAlertSender,
+      MeterRegistry registry) {
     this.fplApiClient = fplApiClient;
     this.liveMatchTracker = liveMatchTracker;
     this.liveMatchAlertSender = liveMatchAlertSender;
+    this.pollSuccessCounter =
+        Counter.builder("bot.live_match.poll.result")
+            .description("Live match polling cycle outcomes, backing match-minute availability")
+            .tag("result", "success")
+            .register(registry);
+    this.pollFailureCounter =
+        Counter.builder("bot.live_match.poll.result")
+            .description("Live match polling cycle outcomes, backing match-minute availability")
+            .tag("result", "failure")
+            .register(registry);
     this.pollingExecutor =
         Executors.newSingleThreadScheduledExecutor(
             runnable -> {
@@ -73,6 +88,12 @@ public class LiveMatchScheduler {
     // exception must be swallowed here rather than left to propagate.
     try {
       List<Fixture> fixtures = fplApiClient.getFixtures();
+      // Counted as soon as the fetch succeeds, independent of whether any match is
+      // currently live: this is "did the poll cycle itself work," the raw signal
+      // Prometheus/Grafana combines with the match schedule to derive match-minute
+      // availability, not an app-computed availability percentage.
+      pollSuccessCounter.increment();
+
       List<Fixture> liveFixtures = fixtures.stream().filter(Fixture::isLive).toList();
       log.info("Polled fixtures: {} currently live", liveFixtures.size());
 
@@ -90,6 +111,7 @@ public class LiveMatchScheduler {
         matchProcessingExecutor.submit(() -> processMatch(fixture, teamNames));
       }
     } catch (Exception e) {
+      pollFailureCounter.increment();
       log.error("Failed to poll live matches", e);
     }
   }
