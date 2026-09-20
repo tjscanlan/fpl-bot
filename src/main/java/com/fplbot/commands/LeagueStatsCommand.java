@@ -1,8 +1,8 @@
 package com.fplbot.commands;
 
-import com.fplbot.fplapi.FplApiClient;
 import com.fplbot.fplapi.LeagueStandings;
 import com.fplbot.leagues.LeagueRepository;
+import com.fplbot.leagues.LeagueStatsService;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -18,11 +18,12 @@ public class LeagueStatsCommand extends ListenerAdapter {
   private static final int MAX_ROWS_SHOWN = 10;
 
   private final LeagueRepository leagueRepository;
-  private final FplApiClient fplApiClient;
+  private final LeagueStatsService leagueStatsService;
 
-  public LeagueStatsCommand(LeagueRepository leagueRepository, FplApiClient fplApiClient) {
+  public LeagueStatsCommand(
+      LeagueRepository leagueRepository, LeagueStatsService leagueStatsService) {
     this.leagueRepository = leagueRepository;
-    this.fplApiClient = fplApiClient;
+    this.leagueStatsService = leagueStatsService;
   }
 
   @Override
@@ -52,7 +53,7 @@ public class LeagueStatsCommand extends ListenerAdapter {
         return "No FPL league is configured for this server yet.";
       }
 
-      LeagueStandings standings = fplApiClient.getLeagueStandings(leagueConfig.get().fplLeagueId());
+      LeagueStandings standings = leagueStatsService.getStandings(leagueConfig.get().fplLeagueId());
       Set<Long> knownEntryIds = leagueRepository.findMemberFplEntryIds(leagueConfig.get().id());
       return formatStandings(standings, knownEntryIds);
     } catch (Exception e) {

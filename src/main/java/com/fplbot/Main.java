@@ -5,6 +5,7 @@ import com.fplbot.commands.PingCommand;
 import com.fplbot.db.Database;
 import com.fplbot.fplapi.FplApiClient;
 import com.fplbot.leagues.LeagueRepository;
+import com.fplbot.leagues.LeagueStatsService;
 import com.fplbot.metrics.MetricsServer;
 import com.fplbot.prices.PriceAlertSender;
 import com.fplbot.prices.PriceChangeService;
@@ -53,11 +54,13 @@ public class Main {
 
     FplApiClient fplApiClient = new FplApiClient();
     LeagueRepository leagueRepository = new LeagueRepository(dataSource);
+    LeagueStatsService leagueStatsService = new LeagueStatsService(fplApiClient);
 
     JDA jda =
         JDABuilder.createLight(token)
             .addEventListeners(
-                new PingCommand(registry), new LeagueStatsCommand(leagueRepository, fplApiClient))
+                new PingCommand(registry),
+                new LeagueStatsCommand(leagueRepository, leagueStatsService))
             .build()
             .awaitReady();
 
