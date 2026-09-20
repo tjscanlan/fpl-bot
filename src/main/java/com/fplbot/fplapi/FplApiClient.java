@@ -77,6 +77,11 @@ public class FplApiClient {
     return objectMapper.readValue(body, new TypeReference<List<Fixture>>() {});
   }
 
+  public List<Team> getTeams() throws IOException, InterruptedException {
+    String body = getWithRetry(BOOTSTRAP_STATIC_URI);
+    return objectMapper.readValue(body, BootstrapStatic.class).teams();
+  }
+
   private String getWithRetry(URI uri) throws IOException, InterruptedException {
     if (!circuitBreaker.allowRequest()) {
       throw new IOException("FPL API circuit breaker is open; failing fast");

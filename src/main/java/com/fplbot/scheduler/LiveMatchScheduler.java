@@ -2,12 +2,18 @@ package com.fplbot.scheduler;
 
 import com.fplbot.fplapi.Fixture;
 import com.fplbot.fplapi.FplApiClient;
+import com.fplbot.fplapi.Team;
+import com.fplbot.livematch.LiveMatchAlertSender;
+import com.fplbot.livematch.LiveMatchTracker;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,11 +29,18 @@ public class LiveMatchScheduler {
   private static final int MATCH_PROCESSING_POOL_SIZE = 10;
 
   private final FplApiClient fplApiClient;
+  private final LiveMatchTracker liveMatchTracker;
+  private final LiveMatchAlertSender liveMatchAlertSender;
   private final ScheduledExecutorService pollingExecutor;
   private final ExecutorService matchProcessingExecutor;
 
-  public LiveMatchScheduler(FplApiClient fplApiClient) {
+  public LiveMatchScheduler(
+      FplApiClient fplApiClient,
+      LiveMatchTracker liveMatchTracker,
+      LiveMatchAlertSender liveMatchAlertSender) {
     this.fplApiClient = fplApiClient;
+    this.liveMatchTracker = liveMatchTracker;
+    this.liveMatchAlertSender = liveMatchAlertSender;
     this.pollingExecutor =
         Executors.newSingleThreadScheduledExecutor(
             runnable -> {
@@ -62,22 +75,27 @@ public class LiveMatchScheduler {
       List<Fixture> fixtures = fplApiClient.getFixtures();
       List<Fixture> liveFixtures = fixtures.stream().filter(Fixture::isLive).toList();
       log.info("Polled fixtures: {} currently live", liveFixtures.size());
+
+      liveMatchTracker.retainOnly(
+          liveFixtures.stream().map(Fixture::id).collect(Collectors.toSet()));
+
+      if (liveFixtures.isEmpty()) {
+        return;
+      }
+
+      Map<Integer, String> teamNames =
+          fplApiClient.getTeams().stream().collect(Collectors.toMap(Team::id, Team::name));
+
       for (Fixture fixture : liveFixtures) {
-        matchProcessingExecutor.submit(() -> processMatch(fixture));
+        matchProcessingExecutor.submit(() -> processMatch(fixture, teamNames));
       }
     } catch (Exception e) {
       log.error("Failed to poll live matches", e);
     }
   }
 
-  private void processMatch(Fixture fixture) {
-    log.info(
-        "Live match {}: team {} vs team {}, minute {}, score {}-{}",
-        fixture.id(),
-        fixture.teamH(),
-        fixture.teamA(),
-        fixture.minutes(),
-        fixture.teamHScore(),
-        fixture.teamAScore());
+  private void processMatch(Fixture fixture, Map<Integer, String> teamNames) {
+    Optional<Fixture> scoreChange = liveMatchTracker.detectScoreChange(fixture);
+    scoreChange.ifPresent(changed -> liveMatchAlertSender.sendScoreUpdate(changed, teamNames));
   }
 }

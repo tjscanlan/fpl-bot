@@ -6,6 +6,8 @@ import com.fplbot.db.Database;
 import com.fplbot.fplapi.FplApiClient;
 import com.fplbot.leagues.LeagueRepository;
 import com.fplbot.leagues.LeagueStatsService;
+import com.fplbot.livematch.LiveMatchAlertSender;
+import com.fplbot.livematch.LiveMatchTracker;
 import com.fplbot.metrics.MetricsServer;
 import com.fplbot.prices.PriceAlertSender;
 import com.fplbot.prices.PriceChangeService;
@@ -121,11 +123,23 @@ public class Main {
     PriceAlertSender priceAlertSender = new PriceAlertSender(jda, priceAlertChannelId);
     new PriceCheckScheduler(priceChangeService, priceAlertSender, priceCheckTime).start();
 
+    String liveMatchChannelIdEnv =
+        dotenv.get("LIVE_MATCH_CHANNEL_ID", System.getenv("LIVE_MATCH_CHANNEL_ID"));
+    Long liveMatchChannelId =
+        liveMatchChannelIdEnv != null && !liveMatchChannelIdEnv.isBlank()
+            ? Long.parseLong(liveMatchChannelIdEnv)
+            : null;
+    if (liveMatchChannelId == null) {
+      log.warn("LIVE_MATCH_CHANNEL_ID is not set; live match score updates are disabled.");
+    }
+
     String liveMatchPollIntervalEnv =
         dotenv.get(
             "LIVE_MATCH_POLL_INTERVAL_SECONDS", System.getenv("LIVE_MATCH_POLL_INTERVAL_SECONDS"));
     long liveMatchPollIntervalSeconds =
         liveMatchPollIntervalEnv != null ? Long.parseLong(liveMatchPollIntervalEnv) : 30;
-    new LiveMatchScheduler(fplApiClient).start(Duration.ofSeconds(liveMatchPollIntervalSeconds));
+    new LiveMatchScheduler(
+            fplApiClient, new LiveMatchTracker(), new LiveMatchAlertSender(jda, liveMatchChannelId))
+        .start(Duration.ofSeconds(liveMatchPollIntervalSeconds));
   }
 }
