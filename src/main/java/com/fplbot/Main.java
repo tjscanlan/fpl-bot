@@ -104,7 +104,7 @@ public class Main {
     LocalTime priceCheckTime =
         priceCheckTimeEnv != null ? LocalTime.parse(priceCheckTimeEnv) : LocalTime.of(1, 30);
     PriceChangeService priceChangeService =
-        new PriceChangeService(fplApiClient, new PriceRepository(dataSource));
+        new PriceChangeService(fplApiClient, new PriceRepository(dataSource), registry);
     PriceAlertSender priceAlertSender = new PriceAlertSender(jda, priceAlertChannelId);
     new PriceCheckScheduler(priceChangeService, priceAlertSender, priceCheckTime).start();
   }
