@@ -3,6 +3,8 @@ package com.fplbot.commands;
 import com.fplbot.fplapi.LeagueStandings;
 import com.fplbot.leagues.LeagueRepository;
 import com.fplbot.leagues.LeagueStatsService;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -19,11 +21,18 @@ public class LeagueStatsCommand extends ListenerAdapter {
 
   private final LeagueRepository leagueRepository;
   private final LeagueStatsService leagueStatsService;
+  private final Timer queryLatencyTimer;
 
   public LeagueStatsCommand(
-      LeagueRepository leagueRepository, LeagueStatsService leagueStatsService) {
+      LeagueRepository leagueRepository,
+      LeagueStatsService leagueStatsService,
+      MeterRegistry registry) {
     this.leagueRepository = leagueRepository;
     this.leagueStatsService = leagueStatsService;
+    this.queryLatencyTimer =
+        Timer.builder("bot.league_stats.query.latency")
+            .description("Time from receiving /league-stats to the reply being sent")
+            .register(registry);
   }
 
   @Override
@@ -36,13 +45,16 @@ public class LeagueStatsCommand extends ListenerAdapter {
       return;
     }
 
+    Timer.Sample sample = Timer.start();
     event.deferReply().queue();
     long guildId = event.getGuild().getIdLong();
 
     // The FPL fetch (plus retries/backoff) is blocking, so it runs off JDA's event
     // thread rather than tying it up.
     CompletableFuture.supplyAsync(() -> fetchStandingsMessage(guildId))
-        .thenAccept(message -> event.getHook().sendMessage(message).queue());
+        .thenAccept(
+            message ->
+                event.getHook().sendMessage(message).queue(v -> sample.stop(queryLatencyTimer)));
   }
 
   private String fetchStandingsMessage(long guildId) {

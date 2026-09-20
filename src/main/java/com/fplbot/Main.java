@@ -60,7 +60,7 @@ public class Main {
         JDABuilder.createLight(token)
             .addEventListeners(
                 new PingCommand(registry),
-                new LeagueStatsCommand(leagueRepository, leagueStatsService))
+                new LeagueStatsCommand(leagueRepository, leagueStatsService, registry))
             .build()
             .awaitReady();
 
