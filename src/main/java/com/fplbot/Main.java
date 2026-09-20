@@ -6,12 +6,15 @@ import com.fplbot.db.Database;
 import com.fplbot.fplapi.FplApiClient;
 import com.fplbot.leagues.LeagueRepository;
 import com.fplbot.leagues.LeagueStatsService;
+import com.fplbot.livematch.LiveMatchAlertSender;
+import com.fplbot.livematch.LiveMatchTracker;
 import com.fplbot.metrics.MetricsServer;
 import com.fplbot.prices.PriceAlertSender;
 import com.fplbot.prices.PriceChangeService;
 import com.fplbot.prices.PriceRepository;
 import com.fplbot.reminders.ReminderRepository;
 import com.fplbot.reminders.ReminderService;
+import com.fplbot.scheduler.LiveMatchScheduler;
 import com.fplbot.scheduler.PriceCheckScheduler;
 import com.fplbot.scheduler.ReminderScheduler;
 import io.github.cdimascio.dotenv.Dotenv;
@@ -119,5 +122,27 @@ public class Main {
         new PriceChangeService(fplApiClient, new PriceRepository(dataSource), registry);
     PriceAlertSender priceAlertSender = new PriceAlertSender(jda, priceAlertChannelId);
     new PriceCheckScheduler(priceChangeService, priceAlertSender, priceCheckTime).start();
+
+    String liveMatchChannelIdEnv =
+        dotenv.get("LIVE_MATCH_CHANNEL_ID", System.getenv("LIVE_MATCH_CHANNEL_ID"));
+    Long liveMatchChannelId =
+        liveMatchChannelIdEnv != null && !liveMatchChannelIdEnv.isBlank()
+            ? Long.parseLong(liveMatchChannelIdEnv)
+            : null;
+    if (liveMatchChannelId == null) {
+      log.warn("LIVE_MATCH_CHANNEL_ID is not set; live match score updates are disabled.");
+    }
+
+    String liveMatchPollIntervalEnv =
+        dotenv.get(
+            "LIVE_MATCH_POLL_INTERVAL_SECONDS", System.getenv("LIVE_MATCH_POLL_INTERVAL_SECONDS"));
+    long liveMatchPollIntervalSeconds =
+        liveMatchPollIntervalEnv != null ? Long.parseLong(liveMatchPollIntervalEnv) : 30;
+    new LiveMatchScheduler(
+            fplApiClient,
+            new LiveMatchTracker(),
+            new LiveMatchAlertSender(jda, liveMatchChannelId, registry),
+            registry)
+        .start(Duration.ofSeconds(liveMatchPollIntervalSeconds));
   }
 }
