@@ -46,9 +46,14 @@ public class Main {
 
     String metricsPortEnv = dotenv.get("METRICS_PORT", System.getenv("METRICS_PORT"));
     int metricsPort = metricsPortEnv != null ? Integer.parseInt(metricsPortEnv) : 8081;
+    String metricsAuthToken = dotenv.get("METRICS_AUTH_TOKEN", System.getenv("METRICS_AUTH_TOKEN"));
+    if (metricsAuthToken == null || metricsAuthToken.isBlank()) {
+      metricsAuthToken = null;
+      log.warn("METRICS_AUTH_TOKEN is not set; /metrics is unauthenticated.");
+    }
 
     PrometheusMeterRegistry registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
-    new MetricsServer(registry, metricsPort).start();
+    new MetricsServer(registry, metricsPort, metricsAuthToken).start();
     log.info("Metrics available at http://localhost:{}/metrics", metricsPort);
 
     DataSource dataSource = Database.dataSource(dotenv);
